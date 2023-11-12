@@ -19,16 +19,38 @@ class Router:
             input = file.read()
             self.packets = input.split("\n")
 
-    def masking(entry,ip):
+    def mask_control(self,ip,mask):
+
+        subnet_mask = ""
         
+        if mask == 32:
+            subnet_mask = "255.255.255.255"
+        elif mask == 24:
+            subnet_mask = "255.255.255.0"
+        elif mask == 16:
+            subnet_mask = "255.255.0.0"
+        elif mask == 8:
+            subnet_mask = "255.0.0.0"  
+        else:
+            subnet_mask = "0.0.0.0"
+
+        self.masking(ip,subnet_mask)
+
+           
+    def masking(ip,mask):
         ip_binary = '.'.join(format(int(x), '08b') for x in ip.split('.'))
-        pass
-        
+        mask_binary = '.'.join(format(int(x), '08b') for x in mask.split('.'))
+        network_address_binary = ''.join([str(int(ip, 2) & int(mask, 2)) for ip, mask in zip(ip_binary.split('.'), mask_binary.split('.'))])
+        decimal_ip = '.'.join(str(int(network_address_binary[i:i+8], 2)) for i in range(0, 32, 8))
+        return decimal_ip
 
     def send_packets(self):
         for packet in self.packets:
+            
             for entry in self.table:
-                self.masking(entry,packet)
+                ip_part =entry.split("/")
+                if ip_part[1] == "32":
+                    self.masking(ip_part[1],int(ip_part[1]))
                 
                 
 
