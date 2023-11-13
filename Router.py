@@ -13,6 +13,9 @@ class Router:
             temp = list((lst[i], lst[i+1], lst[i+2]))
             self.table.append(temp)
             i += 3
+        
+        for entry in self.table:
+            print(entry)
 
     def read_packets(self):
         with open("RandomPackets.txt","r") as file:
@@ -22,7 +25,7 @@ class Router:
     def mask_control(self,ip,mask):
 
         subnet_mask = ""
-        
+
         if mask == 32:
             subnet_mask = "255.255.255.255"
         elif mask == 24:
@@ -34,30 +37,58 @@ class Router:
         else:
             subnet_mask = "0.0.0.0"
 
-        self.masking(ip,subnet_mask)
+        # print(ip)
+        # print("hello",subnet_mask)
+
+        return self.masking(ip,subnet_mask)
 
            
-    def masking(ip,mask):
+    def masking(self,ip,subnet_mask):
         ip_binary = '.'.join(format(int(x), '08b') for x in ip.split('.'))
-        mask_binary = '.'.join(format(int(x), '08b') for x in mask.split('.'))
-        network_address_binary = ''.join([str(int(ip, 2) & int(mask, 2)) for ip, mask in zip(ip_binary.split('.'), mask_binary.split('.'))])
-        decimal_ip = '.'.join(str(int(network_address_binary[i:i+8], 2)) for i in range(0, 32, 8))
-        return decimal_ip
+        mask_binary = '.'.join(format(int(x), '08b') for x in subnet_mask.split('.'))
+        network_address_binary = '.'.join([str(int(ip, 2) & int(mask, 2)) for ip, mask in zip(ip_binary.split('.'), mask_binary.split('.'))])
+        return network_address_binary
 
     def send_packets(self):
         for packet in self.packets:
-            
+
             for entry in self.table:
-                ip_part =entry.split("/")
-                if ip_part[1] == "32":
-                    self.masking(ip_part[1],int(ip_part[1]))
+
+                mask_32_result = ""
                 
+                ip_part =entry[0].split("/")
+                if ip_part[1] == "32":
+                    # print(entry)
+                    mask_32_result = self.mask_control(packet,int(ip_part[1]))
+
+                    if mask_32_result == ip_part[0]:
+                        if entry[1] == "-":
+                            print(packet+" will  be  forwarded on  the  directly  connected  network  on interface " + entry[2])
+                            return
+                        else:
+                            print(packet+" will be forwarded to "+ entry[1] +" out on interface " + entry[2])
+                            return
+                    else:
+                        continue
+
+            for entry in self.table:
+
+                mask_24_result = ""
+                ip_part =entry[0].split("/")
+                if ip_part[1] == "24":
+                    mask_24_result = self.mask_control(packet,int(ip_part[1]))
+                    
+                    if mask_24_result == ip_part[0]:
+                        if entry[1] == "-":
+                            print(packet+" will  be  forwarded on  the  directly  connected  network  on interface " + entry[2])
+                        else:
+                            print(packet+" will be forwarded to "+ entry[1] +" out on interface " + entry[2])
+                    else:
+                        continue               
                 
 
 router = Router()
 router.read_packets()
-print(router.table)
-ip_address = "192.168.1.100"
-ip_binary = '.'.join(format(int(x), '08b') for x in ip_address.split('.'))
-print(ip_binary)
+router.send_packets()
+
 
