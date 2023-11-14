@@ -34,6 +34,7 @@ class Router:
     # Decding the mask address for the IP address.
     def mask_control(self,ip,mask):
 
+        mask = int(mask)
         subnet_mask = ""
 
         # Host specific Mask
@@ -55,12 +56,12 @@ class Router:
 
     # Performing the operation binary AND operation between Mask and IP address.
     def masking(self,ip,subnet_mask):
-        ip_binary = '.'.join(format(int(x), '08b') for x in ip.split('.'))
-        mask_binary = '.'.join(format(int(x), '08b') for x in subnet_mask.split('.'))
+        ip_binary = '.'.join(format(int(x), '08b') for x in ip.split('.')) # Converting to binary
+        mask_binary = '.'.join(format(int(x), '08b') for x in subnet_mask.split('.')) # Converting to binary
         network_address = '.'.join([str(int(ip, 2) & int(mask, 2)) for ip, mask in zip(ip_binary.split('.'), mask_binary.split('.'))])
         return network_address
     
-    # Checking Loopback IP
+    # Checking Loopback IP.
     def is_loopback_address(self, ip_address):
 
         # Regex for checking the loopback_ip pattern
@@ -70,7 +71,8 @@ class Router:
             return True
         else:
             return False
-        
+    
+    # For checking ip address is Type/Class D or E
     def validate_address(self, ip_address):
 
         # Regular expression for Class D or E IP addresses
@@ -78,73 +80,65 @@ class Router:
 
         # Check if the IP address matches the pattern
         return bool(pattern.match(ip_address))
+    
+    
+    # Router 1.Masking and 2.Searching 3. Forwarding task. 
+    def process_entries(self,packet, mask):
 
+        for entry in self.table:
+            entry_ip,entry_ip_mask = entry[0].split("/")
+
+            # Comparing for mask value to be specific like 32/24/16/8/0 etc.
+            if entry_ip_mask == mask:
+
+                # Perform masking with packet ip address
+                mask_result = self.mask_control(packet,entry_ip_mask)
+
+                if mask_result == entry_ip:
+                    # Checking next hope address (entry[1] - next hop, entry[2] - interface)
+                    if entry[1] == "-":
+                        self.out_lst.append(packet+" will be forwarded on the directly connected network on interface " + entry[2])
+                    else:
+                        self.out_lst.append(packet+" will be forwarded to "+ entry[1] +" out on interface " + entry[2])
+                    return True
+                
+        return False
+
+    # Sending packets to next destination
     def send_packets(self):
 
+        # Data Structure for storing output logs
         self.out_lst = []
 
         for packet in self.packets:
             
-            flag = 0
-
-            # First checking for loopback address.
+            # First - checking for loopback address.
             if self.is_loopback_address(packet):
                 self.out_lst.append(packet+" is loopback; discarded")
                 continue    
 
-            # Second checking for validity of the address
+            # Second - checking for validity of the address
             elif self.validate_address(packet):
                 self.out_lst.append(packet+" is malformed; discarded")
                 continue
 
-            # Third Checking for Host specific entries in the table
-            for entry in self.table:
-                
-                ip_part =entry[0].split("/")
-                if ip_part[1] == "32":
-
-                    mask_result = self.mask_control(packet,int(ip_part[1]))
-
-                    if mask_result == ip_part[0]:
-                        if entry[1] == "-":
-                            self.out_lst.append(packet+" will be forwarded on the directly connected network on interface " + entry[2])
-                            flag = 1
-                            break
-                        else:
-                            self.out_lst.append(packet+" will be forwarded to "+ entry[1] +" out on interface " + entry[2])
-                            flag = 1
-                            break
-                    else:
-                        continue
-            
-            # trigger indicating output is stored, move to the next packet
-            if flag == 1:
-                continue
-
-            # Fourth Checking for Normal network entries
-            for entry in self.table:
-
-                ip_part =entry[0].split("/")
-                if ip_part[1] == "24":
-                    mask_result = self.mask_control(packet,int(ip_part[1]))
-                    
-                    if mask_result == ip_part[0]:
-                        if entry[1] == "-":
-                            self.out_lst.append(packet+" will be forwarded on the directly connected network on interface " + entry[2])
-                            flag = 1
-                            break
-                        else:
-                            self.out_lst.append(packet+" will be forwarded to "+ entry[1] +" out on interface " + entry[2])
-                            flag = 1
-                            break
-                    else:
-                        continue   
-
-            # Trigger indicating output is stored, move to the next packet.
-            if flag == 1:
+            # Third - Checking for Host specific entries in the table
+            if self.process_entries(packet,"32"):
                 continue
             
-            # Fifth default entries in the routing table.
+            # Fourth - Checking for Normal network entries Type C
+            if self.process_entries(packet,"24"):
+                continue
+
+            # Fifth - Checking for Normal network entrie Type B
+            if self.process_entries(packet,"16"):
+                continue
+
+            # Sixth - Checking for Normal network entrie Type A
+            if self.process_entries(packet,"8"):
+                continue
+            
+            # Seven - default entries in the routing table.
             for entry in self.table:
 
                 if entry[0] == "0.0.0.0/0":
@@ -154,14 +148,13 @@ class Router:
     # Function of the router class that writes the output to a file called RoutingOutput.txt.
     def write_output_packets(self):
         with open("RoutingOutput.txt","w") as file:
+            print("Output logs:")
+            print("-------------------------------------------------")
             for item in self.out_lst:
                 file.write(item + "\n")
-
-            
+                print(item)
 
 router = Router()
 router.read_packets()
 router.send_packets()
 router.write_output_packets()
-
-
