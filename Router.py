@@ -148,8 +148,10 @@ class Router:
     # Function of the router class that writes the output to a file called RoutingOutput.txt.
     def write_output_packets(self):
         with open("RoutingOutput.txt","w") as file:
-            print("Output logs:")
+            print("Darshil Patel(B00946528) Output logs:\n")
             print("-------------------------------------------------")
+            file.write("Darshil Patel(B00946528) Output:\n")
+            file.write("-------------------------------------------------\n")
             for item in self.out_lst:
                 file.write(item + "\n")
                 print(item)
